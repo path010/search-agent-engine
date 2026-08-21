@@ -1,0 +1,12 @@
+{
+  "name": "anti-cocoon-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "反信息茧房搜索引擎 · 前后端一体 · 纯 Node.js 零依赖",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  }
+}
