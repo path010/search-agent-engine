@@ -142,6 +142,7 @@ async function handleAPI(req, res, url) {
     const deviation = b.deviation != null
       ? Math.max(0, Math.min(1, Number(b.deviation)))
       : memory.preferred_deviation;
+    const retry = Math.max(0, Math.floor(Number(b.retry) || 0));
 
     const t0 = Date.now();
 
@@ -152,12 +153,12 @@ async function handleAPI(req, res, url) {
         const out = await llm.agentGenerate({ query, deviation, memory, signal: null });
         gen = { engine, original_query: query, deviation, ...out };
       } catch (e) {
-        gen = generate('沙之海', query, deviation, memory);
+        gen = generate('沙之海', query, deviation, memory, { retry });
         gen.engine = 'A.G.E.N.T.';
         gen.rationale = '（模型不可用，已降级到规则引擎）' + gen.rationale;
       }
     } else {
-      gen = generate(engine, query, deviation, memory);
+      gen = generate(engine, query, deviation, memory, { retry });
     }
 
     // 记忆引用：命中黑名单 / 上次反馈时说明
@@ -167,7 +168,12 @@ async function handleAPI(req, res, url) {
       : '';
 
     const { mode, results } = await runSearch({
-      searchQueries: gen.search_queries, bridge: gen.bridge_concept, limit: 6,
+      searchQueries: gen.search_queries,
+      bridge: gen.bridge_concept,
+      originalQuery: query,
+      generatedQuery: gen.generated_query,
+      retry,
+      limit: 6,
     });
     const cards = buildCards(query, gen);
 
@@ -178,7 +184,7 @@ async function handleAPI(req, res, url) {
       ...gen, memory_citation,
       search_mode: mode, results, cards,
       round: memory.round_counter, band: devBand(deviation),
-      elapsed_ms: Date.now() - t0, memory,
+      retry, elapsed_ms: Date.now() - t0, memory,
     });
   }
 
