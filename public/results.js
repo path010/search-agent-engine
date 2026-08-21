@@ -10,6 +10,8 @@ let query = (params.get('q') || '').trim();
 let engineName = params.get('engine') || '沙之海';
 let deviation = Math.max(0, Math.min(1, Number(params.get('dev') || 50) / 100));
 let retryNonce = Math.max(0, Number(params.get('retry') || 0));
+let currentPage = 0;
+let loadedUrls = [];
 
 async function boot() {
   initDrift();
@@ -89,6 +91,8 @@ let searching = false;
 async function runSearch(updateUrl) {
   if (searching) return;
   searching = true;
+  loadedUrls = [];
+  currentPage = 0;
   if (updateUrl) {
     const p = new URLSearchParams({ q: query, engine: engineName, dev: Math.round(deviation * 100), retry: retryNonce });
     history.replaceState(null, '', '/results.html?' + p.toString());
@@ -99,12 +103,12 @@ async function runSearch(updateUrl) {
   glyphs.innerHTML = POOL.slice(0, 6).join('');
 
   try {
-    const data = await api.post('/api/search', { query, engine: engineName, deviation, retry: retryNonce });
+    const data = await api.post('/api/search', { query, engine: engineName, deviation, retry: retryNonce, page: 0, exclude_urls: [] });
     await animateStage(data);
     LAST = data;
     deviation = data.deviation;
     retryNonce = Number(data.retry || retryNonce);
-    render(data);
+    render(data, false);
     // 同题两答：命中记忆时弹胶囊
     if (data.memory_citation && data.round > 1) showMemoryPop(data.memory_citation);
   } catch (e) {
@@ -123,7 +127,7 @@ $('memClose').addEventListener('click', () => $('memPop').classList.remove('show
 $('memPop').addEventListener('click', e => { if (e.target === $('memPop')) $('memPop').classList.remove('show'); });
 
 /* ---- 渲染结果 ---- */
-function render(d) {
+function render(d, append = false) {
   $('layout').hidden = false;
   const srcLabel = d.search_mode === 'searxng' ? 'SearXNG 实时' : '精选库';
 
@@ -135,17 +139,46 @@ function render(d) {
     `<span class="badge">偏离度 ${d.deviation.toFixed(2)} · ${escapeHTML(d.band)}</span>` +
     `<span class="badge">第 ${d.round} 轮</span>` +
     `<span class="badge">${srcLabel}</span>` +
+    `<span class="badge">第 ${Number(d.page || 0) + 1} 页</span>` +
     (d.memory_citation ? `<span class="cite">💊 ${escapeHTML(d.memory_citation)}</span>` : '');
 
   // 结果瀑布流
   const stream = $('stream');
-  stream.innerHTML = '';
+  if (!append) stream.innerHTML = '';
   (d.results || []).forEach((r, i) => stream.appendChild(resultCard(r, d, i)));
-  if (!d.results?.length) stream.innerHTML = '<div class="card">这次没有取到结果，换个引擎或降低偏离度再试。</div>';
+  if (!d.results?.length && !append) stream.innerHTML = '<div class="card">这次没有取到结果，换个引擎或降低偏离度再试。</div>';
+  for (const r of d.results || []) if (r.url && !loadedUrls.includes(r.url)) loadedUrls.push(r.url);
+  currentPage = Number(d.page || 0);
+  $('moreWrap').hidden = !d.has_more;
+  $('moreBtn').disabled = false;
+  $('moreStatus').textContent = d.has_more ? '还可以继续绕路' : '已经到达当前搜索源的末尾';
 
   // 右侧灵感卡片
   renderCards(d.cards, d.original_query);
 }
+
+async function loadMore() {
+  if (searching || !$('moreWrap') || $('moreWrap').hidden) return;
+  searching = true;
+  $('moreBtn').disabled = true;
+  $('moreStatus').textContent = '正在寻找下一页……';
+  try {
+    const data = await api.post('/api/search', {
+      query, engine: engineName, deviation, retry: retryNonce,
+      page: currentPage + 1, exclude_urls: loadedUrls,
+    });
+    LAST = data;
+    render(data, true);
+  } catch (e) {
+    $('moreBtn').disabled = false;
+    $('moreStatus').textContent = '加载失败，请再试一次';
+    toast('加载更多失败：' + e.message);
+  } finally {
+    searching = false;
+  }
+}
+
+$('moreBtn').addEventListener('click', loadMore);
 
 function resultCard(r, d, i) {
   const el = document.createElement('article');
