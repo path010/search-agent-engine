@@ -9,6 +9,7 @@ let META = null, LAST = null;
 let query = (params.get('q') || '').trim();
 let engineName = params.get('engine') || '沙之海';
 let deviation = Math.max(0, Math.min(1, Number(params.get('dev') || 50) / 100));
+let retryNonce = Math.max(0, Number(params.get('retry') || 0));
 
 async function boot() {
   initDrift();
@@ -89,7 +90,7 @@ async function runSearch(updateUrl) {
   if (searching) return;
   searching = true;
   if (updateUrl) {
-    const p = new URLSearchParams({ q: query, engine: engineName, dev: Math.round(deviation * 100) });
+    const p = new URLSearchParams({ q: query, engine: engineName, dev: Math.round(deviation * 100), retry: retryNonce });
     history.replaceState(null, '', '/results.html?' + p.toString());
   }
   const stage = $('stage'), glyphs = $('glyphs'), caption = $('caption');
@@ -98,10 +99,11 @@ async function runSearch(updateUrl) {
   glyphs.innerHTML = POOL.slice(0, 6).join('');
 
   try {
-    const data = await api.post('/api/search', { query, engine: engineName, deviation });
+    const data = await api.post('/api/search', { query, engine: engineName, deviation, retry: retryNonce });
     await animateStage(data);
     LAST = data;
     deviation = data.deviation;
+    retryNonce = Number(data.retry || retryNonce);
     render(data);
     // 同题两答：命中记忆时弹胶囊
     if (data.memory_citation && data.round > 1) showMemoryPop(data.memory_citation);
@@ -164,7 +166,7 @@ function resultCard(r, d, i) {
     `<button data-fb="满意">满意</button>` +
     `<button data-fb="不够偏">不够偏</button>` +
     `</span></div>` +
-    chainHTML(d);
+    chainHTML(d, r);
   // 解释链展开
   el.querySelector('.why-btn').addEventListener('click', () => {
     el.querySelector('.chain').classList.toggle('open');
@@ -176,7 +178,7 @@ function resultCard(r, d, i) {
   return el;
 }
 
-function chainHTML(d) {
+function chainHTML(d, r = {}) {
   const chain = escapeHTML(d.chain || `${d.original_query} → ${d.bridge_concept} → ${(d.search_queries || [])[0] || ''}`);
   return `<div class="chain">` +
     `<div class="step"><span class="k">原始问题</span>${escapeHTML(d.original_query)}</div>` +
@@ -186,7 +188,9 @@ function chainHTML(d) {
     `<div class="step"><span class="k">检索词</span>${escapeHTML((d.search_queries || []).join(' '))}</div>` +
     `<div class="arr">↓ 为什么是它</div>` +
     `<div class="step"><span class="k">连接逻辑</span>${chain}</div>` +
-    (d.rationale ? `<div class="step"><span class="k">理由</span>${escapeHTML(d.rationale)}</div>` : '') +
+    (r.connection ? `<div class="step"><span class="k">网页关联</span>${escapeHTML(r.connection)}</div>` : '') +
+    (r.why ? `<div class="step"><span class="k">为什么是这页</span>${escapeHTML(r.why)}</div>` : '') +
+    (d.rationale ? `<div class="step"><span class="k">方向理由</span>${escapeHTML(d.rationale)}</div>` : '') +
     `</div>`;
 }
 
@@ -217,6 +221,7 @@ async function applyFeedback(payload) {
 async function sendQuick(kind) {
   const d = await applyFeedback({ quick: kind });
   if (!d) return;
+  retryNonce += 1;
   // "再来一次" / 调整后：重搜同题，演示"同题两答"
   await runSearch(true);
 }
@@ -227,7 +232,7 @@ $('fbSend').addEventListener('click', async () => {
   const d = await applyFeedback({ text });
   if (!d) return;
   $('fbInput').value = '';
-  if (!d.need_clarify) await runSearch(true);
+  if (!d.need_clarify) { retryNonce += 1; await runSearch(true); }
 });
 $('fbInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('fbSend').click(); });
 
