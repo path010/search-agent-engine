@@ -143,6 +143,11 @@ async function handleAPI(req, res, url) {
       ? Math.max(0, Math.min(1, Number(b.deviation)))
       : memory.preferred_deviation;
     const retry = Math.max(0, Math.floor(Number(b.retry) || 0));
+    const page = Math.max(0, Math.floor(Number(b.page) || 0));
+    const limit = Math.max(1, Math.min(12, Math.floor(Number(b.limit) || 6)));
+    const excludeUrls = Array.isArray(b.exclude_urls)
+      ? b.exclude_urls.map(x => String(x)).filter(x => /^https?:\/\//i.test(x)).slice(0, 100)
+      : [];
 
     const t0 = Date.now();
 
@@ -167,13 +172,15 @@ async function handleAPI(req, res, url) {
       ? `因为你说过想避开「${activeBl.map(x => x.category).join('、')}」，本轮已绕开这些方向。`
       : '';
 
-    const { mode, results } = await runSearch({
+    const { mode, results, has_more, next_page } = await runSearch({
       searchQueries: gen.search_queries,
       bridge: gen.bridge_concept,
       originalQuery: query,
       generatedQuery: gen.generated_query,
       retry,
-      limit: 6,
+      page,
+      limit,
+      excludeUrls,
     });
     const cards = buildCards(query, gen);
 
@@ -184,7 +191,7 @@ async function handleAPI(req, res, url) {
       ...gen, memory_citation,
       search_mode: mode, results, cards,
       round: memory.round_counter, band: devBand(deviation),
-      retry, elapsed_ms: Date.now() - t0, memory,
+      retry, page, has_more, next_page, elapsed_ms: Date.now() - t0, memory,
     });
   }
 
