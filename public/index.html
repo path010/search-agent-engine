@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anti-Cocoon Engine · 不讨好你的搜索引擎</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="drift" id="drift" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand"><b>意外引擎</b><small>ANTI-COCOON ENGINE</small></div>
+  <div class="spacer"></div>
+  <span class="chip" id="searchChip">搜索源：加载中</span>
+  <span class="chip" id="connChip">A.G.E.N.T. 未连接</span>
+  <button class="ghost" id="connBtn">连接模型</button>
+</header>
+
+<main class="home">
+  <h1>意外引擎</h1>
+  <div class="sub">不给你最匹配的答案，而是打开最值得绕路的可能性</div>
+  <div class="creed">
+    普通搜索：你问什么，它答什么。<br>
+    意外引擎：你问什么，它先理解你，再把你带到一个你本来不会经过的地方。
+  </div>
+
+  <div class="search-row">
+    <div class="search-box">
+      <span class="mono" style="color:var(--muted)">&gt;_</span>
+      <input id="q" placeholder="输入你想知道的事……" autocomplete="off" spellcheck="false">
+      <select class="engine-select" id="engine" title="意外引擎"></select>
+    </div>
+    <button class="go-btn" id="go">出发</button>
+    <div class="suggest" id="suggest" hidden></div>
+  </div>
+  <div class="engine-note" id="engineNote"></div>
+
+  <div class="presets">
+    <span class="lbl">猜你不想搜：</span>
+    <button data-q="手工装订">手工装订</button>
+    <button data-q="海底电缆">海底电缆</button>
+    <button data-q="候鸟迁徙">候鸟迁徙</button>
+    <button data-q="古地图">古地图</button>
+    <button data-q="古代钟表">古代钟表</button>
+  </div>
+
+  <div class="deviation">
+    <div class="row">
+      <label>偏离度</label>
+      <input type="range" id="dev" min="0" max="100" value="50">
+      <span class="val" id="devVal">0.50 · 跨界</span>
+    </div>
+    <div class="ends"><span>近路</span><span>远方</span></div>
+  </div>
+</main>
+
+<!-- 登录弹层 -->
+<div class="modal" id="loginModal">
+  <div class="panel">
+    <h2>连接你的模型</h2>
+    <p class="note">
+      可选步骤。不连接也能用四个规则引擎（沙之海 / 反命题 / 魔音 / 字根岔路）。
+      连接后可启用 <b>A.G.E.N.T.</b> 引擎与自然语言反馈解析。
+      API Key 仅存本机内存，不写磁盘、不上传。
+    </p>
+    <label class="fld"><span>服务商</span><select id="provider"></select></label>
+    <label class="fld"><span>接口地址 baseURL</span><input id="baseURL" placeholder="https://api.deepseek.com/v1" autocomplete="off"></label>
+    <label class="fld"><span>模型 model</span><input id="model" placeholder="deepseek-chat" autocomplete="off"></label>
+    <label class="fld"><span>API Key（本地 Ollama 可留空）</span><input id="apiKey" type="password" placeholder="sk-..." autocomplete="off"></label>
+    <button class="primary" id="loginBtn">连接并进入</button>
+    <div class="msg" id="loginMsg"></div>
+    <a class="skip" id="skipLogin">跳过，直接用规则引擎 →</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/home.js" type="module"></script>
+</body>
+</html>
