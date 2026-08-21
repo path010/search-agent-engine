@@ -14,6 +14,7 @@ async function main() {
   const meta = await get('/api/meta');
   check(Object.keys(meta.engines).length === 6, '六个意外引擎已注册');
   line('search_mode', meta.search_mode);
+  await fetch(BASE + '/api/memory', { method: 'DELETE' });
 
   console.log('\n=== suggest ===');
   const sg = await get('/api/suggest?q=' + encodeURIComponent('如何提高学习效率'));
@@ -115,6 +116,20 @@ async function main() {
   const explain = await post('/api/search', { query: '候鸟迁徙', engine: '沙之海', deviation: 0.8 });
   check(explain.results.every(x => x.why && x.connection), '结果包含网页级解释字段');
   check(new Set(explain.results.map(x => x.connection)).size === explain.results.length, '每条网页解释不再完全相同');
+
+  console.log('\n=== P1 回归：分页、去重和直答结果数量 ===');
+  await fetch(BASE + '/api/memory', { method: 'DELETE' });
+  const page1 = await post('/api/search', { query: '人类', engine: '沙之海', deviation: 0, page: 0, limit: 6 });
+  check(page1.results.length >= 6, '偏离度 0 也返回至少 6 条结果');
+  check(page1.results.every(x => x.relevance != null && x.why && x.connection), '结果带质量分和解释字段');
+  check(page1.has_more === true, '第一页提示还有更多结果');
+  const page2 = await post('/api/search', {
+    query: '人类', engine: '沙之海', deviation: 0, page: 1, limit: 6,
+    exclude_urls: page1.results.map(x => x.url),
+  });
+  const firstUrls = new Set(page1.results.map(x => x.url));
+  check(page2.results.length > 0, '第二页能继续返回结果');
+  check(page2.results.every(x => !firstUrls.has(x.url)), '分页结果不与第一页重复');
 
   console.log('\n======================================');
   console.log('  通过 ' + pass + ' ，失败 ' + fail);
