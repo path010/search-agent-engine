@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>意外引擎 · 结果</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="drift" id="drift" aria-hidden="true"></div>
+
+<!-- 搜索过场 -->
+<div class="stage" id="stage">
+  <div class="glyphs" id="glyphs"></div>
+  <div class="caption" id="caption"></div>
+  <div class="reveal" id="reveal">
+    <div class="line"><span class="k">你输入的是</span><span id="rvIn"></span></div>
+    <div class="line"><span class="k">意外引擎生成了</span><span id="rvGen"></span></div>
+    <div class="line"><span class="k">真实检索词</span><span class="real" id="rvReal"></span></div>
+  </div>
+</div>
+
+<header class="results-head">
+  <a class="brand" href="/" style="display:flex;align-items:baseline;gap:8px">
+    <b style="font-size:17px;font-weight:500;letter-spacing:.06em">意外引擎</b>
+  </a>
+  <div class="rbox">
+    <span class="qmark">&gt;_</span>
+    <input id="q" autocomplete="off" spellcheck="false">
+  </div>
+  <select class="engine-select" id="engine" title="意外引擎"></select>
+  <button class="go-btn" id="go" style="padding:0 18px;font-size:14px">重搜</button>
+  <span class="chip" id="connChip"></span>
+</header>
+
+<main class="layout" id="layout" hidden>
+  <div class="meta-strip" id="metaStrip"></div>
+  <section class="stream" id="stream"></section>
+  <aside class="aside" id="aside"></aside>
+  <div class="feedback">
+    <div class="fbox">
+      <input id="fbInput" placeholder="用自然语言反馈：再偏一点 / 拉回来一点 / 不想看纯技术内容">
+      <button id="fbSend">发送反馈</button>
+    </div>
+    <div class="quick">
+      <button data-fb="太偏了">太偏了</button>
+      <button data-fb="满意">满意</button>
+      <button data-fb="不够偏">不够偏</button>
+      <button data-fb="避开此类">避开此类</button>
+      <button data-fb="再来一次">再来一次</button>
+    </div>
+    <div class="confirm" id="fbConfirm"></div>
+  </div>
+</main>
+
+<!-- 记忆胶囊 -->
+<div class="mem-pop" id="memPop">
+  <div class="box">
+    <div class="t">💊 本次使用的记忆</div>
+    <div class="c" id="memText"></div>
+    <button class="ghost close" id="memClose">继续</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/results.js" type="module"></script>
+</body>
+</html>
