@@ -131,6 +131,14 @@ async function main() {
   check(page2.results.length > 0, '第二页能继续返回结果');
   check(page2.results.every(x => !firstUrls.has(x.url)), '分页结果不与第一页重复');
 
+  console.log('\n=== P1 回归：主题分面搜索计划 ===');
+  const human = await post('/api/search', { query: '人类', engine: '沙之海', deviation: 0 });
+  check(human.search_queries.includes('人类 是什么') && human.search_queries.includes('人类 分类 类型'), '人类生成直答分面词');
+  check(human.results.some(x => /Human Origins|人类演化|人体/.test(x.title)), '人类结果来自主题精选池');
+  const electricity = await post('/api/search', { query: '电', engine: '沙之海', deviation: 0 });
+  check(electricity.search_queries.includes('电场 电流 电磁学'), '电生成电磁学分面词');
+  check(electricity.results.some(x => /电|电磁|电鳗/.test(x.title)), '电结果保持主题相关');
+
   console.log('\n======================================');
   console.log('  通过 ' + pass + ' ，失败 ' + fail);
   console.log('======================================');
