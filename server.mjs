@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ENGINE_META, generate } from './lib/engines.mjs';
 import { runSearch, SEARCH_MODE } from './lib/search.mjs';
+import { buildSearchQueries } from './lib/search-plans.mjs';
 import { buildCards } from './lib/cards.mjs';
 import { createMemoryStore, recordRound, applyActions, quickAction } from './lib/memory.mjs';
 import * as llm from './lib/llm.mjs';
@@ -165,6 +166,14 @@ async function handleAPI(req, res, url) {
     } else {
       gen = generate(engine, query, deviation, memory, { retry });
     }
+
+    // 意外引擎决定“往哪里绕”，主题分面层决定“如何仍然搜得到”。
+    // 这部分移植自 search-engine：直答、邻近、跨域查询按偏离度组合。
+    gen.search_queries = buildSearchQueries({
+      originalQuery: query,
+      generatedQuery: gen.generated_query,
+      deviation,
+    });
 
     // 记忆引用：命中黑名单 / 上次反馈时说明
     const activeBl = memory.blacklist.filter(x => x.active !== false);
