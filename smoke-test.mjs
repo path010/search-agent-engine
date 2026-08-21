@@ -1,5 +1,5 @@
 /* 冒烟测试：直连本地服务，验证六引擎 + 搜索 + 反馈 + 同题两答记忆 */
-const BASE = 'http://127.0.0.1:8791';
+const BASE = process.env.TEST_BASE || 'http://127.0.0.1:8791';
 const post = (p, b) => fetch(BASE + p, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b),
 }).then(r => r.json());
@@ -68,6 +68,53 @@ async function main() {
   console.log('\n=== 直答模式 (dev=0) ===');
   const direct = await post('/api/search', { query: '什么是TCP', engine: '沙之海', deviation: 0 });
   line('dev=0', direct.generated_query + '  band=' + direct.band);
+
+  console.log('\n=== P0 回归：检索词与网站结果变化 ===');
+  await fetch(BASE + '/api/memory', { method: 'DELETE' });
+  const varied = [];
+  for (const [q, engine] of [['信息流推荐', '沙之海'], ['数据库设计', '沙之海'], ['代码优化', '语义远眺'], ['AI 大模型', '魔音']]) {
+    const r = await post('/api/search', { query: q, engine, deviation: 0.5 });
+    varied.push(r.results.map(x => x.url).join('|'));
+    check(r.results.length >= 4, q + '：至少返回 4 条结果');
+  }
+  check(new Set(varied).size >= 3, '不同检索方向返回不同网站集合');
+
+  console.log('\n=== P0 回归：偏离度改变六种引擎 ===');
+  for (const engine of Object.keys(meta.engines)) {
+    await fetch(BASE + '/api/memory', { method: 'DELETE' });
+    const low = await post('/api/search', { query: 'AI 大模型', engine, deviation: 0.2 });
+    const high = await post('/api/search', { query: 'AI 大模型', engine, deviation: 0.8 });
+    check(low.generated_query !== high.generated_query || low.bridge_concept !== high.bridge_concept,
+      engine + '：偏离度改变方向');
+  }
+
+  console.log('\n=== P0 回归：再来一次、黑名单、满意反馈 ===');
+  for (const engine of Object.keys(meta.engines)) {
+    await fetch(BASE + '/api/memory', { method: 'DELETE' });
+    const first = await post('/api/search', { query: '数据库设计', engine, deviation: 0.5 });
+    const again = await post('/api/search', { query: '数据库设计', engine, deviation: 0.5, retry: 1 });
+    check(first.generated_query !== again.generated_query || first.bridge_concept !== again.bridge_concept ||
+      first.results.map(x => x.url).join('|') !== again.results.map(x => x.url).join('|'), engine + '：再来一次产生变化');
+
+    await fetch(BASE + '/api/memory', { method: 'DELETE' });
+    const beforeBlack = await post('/api/search', { query: 'AI 大模型', engine, deviation: 0.5 });
+    await post('/api/feedback', { quick: '避开此类', deviation: 0.5, lastBridge: beforeBlack.bridge_concept });
+    const afterBlack = await post('/api/search', { query: 'AI 大模型', engine, deviation: 0.5, retry: 1 });
+    check(afterBlack.bridge_concept !== beforeBlack.bridge_concept, engine + '：黑名单避开上一方向');
+
+    await fetch(BASE + '/api/memory', { method: 'DELETE' });
+    const beforeLike = await post('/api/search', { query: 'AI 大模型', engine, deviation: 0.5 });
+    await post('/api/feedback', { quick: '满意', deviation: 0.5, lastBridge: beforeLike.bridge_concept });
+    const afterLike = await post('/api/search', { query: 'AI 大模型', engine, deviation: 0.5 });
+    check(afterLike.memory.interest_signals.length > 0 &&
+      (afterLike.bridge_concept !== beforeLike.bridge_concept || afterLike.results.map(x => x.url).join('|') !== beforeLike.results.map(x => x.url).join('|')),
+      engine + '：满意反馈影响下一轮');
+  }
+
+  console.log('\n=== P0 回归：每条网页独立解释 ===');
+  const explain = await post('/api/search', { query: '候鸟迁徙', engine: '沙之海', deviation: 0.8 });
+  check(explain.results.every(x => x.why && x.connection), '结果包含网页级解释字段');
+  check(new Set(explain.results.map(x => x.connection)).size === explain.results.length, '每条网页解释不再完全相同');
 
   console.log('\n======================================');
   console.log('  通过 ' + pass + ' ，失败 ' + fail);
